@@ -1,0 +1,3 @@
+ocamlwc *ml{,i,l,y}
+echo " - "
+ocamlwc satis*.ml h*.ml{,i}
