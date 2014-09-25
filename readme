@@ -1,0 +1,8 @@
+This program has been written by Arthur Milchior as part of his Computer Science PhD at University Paris Diderot.
+It can be compiled with 
+occamlbuild main.native
+
+You can with this code:
+Take a FO[<,mod] formula and generate the minimal automaton that accepts it,
+Read a list of automaton in the file input, reading natural numbers or integers and check if it is definable with quantifier-free formula with some subset of the predicate [+N, =N, <, mod]
+Generate a formula describing the set accepted by the automaton.
