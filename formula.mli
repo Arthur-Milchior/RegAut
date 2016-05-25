@@ -3,6 +3,7 @@ open Hashcons
 type quantifier =
   | Free
   | Existential
+  | No_formula
 
 (** The type of a variable, either free or bound (either int or bool) *)
 type var 

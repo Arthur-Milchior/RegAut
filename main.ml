@@ -3,15 +3,6 @@ Random.self_init ();;
 open Format
 let ppf = std_formatter;;
 
-let filename =
-  if Array.length Sys.argv > 1
-  then Sys.argv.(1)
-  else  "input";;
-
-let input = open_in filename;;
-
-let filebuf = Lexing.from_channel input;;
-
 
 (*let aut_string = Simple.to_string aut;;
 print_string ("The automaton is :\n"^ aut_string ^"\n ____________________\n");;
@@ -21,21 +12,35 @@ let debug _ = ();;
 let output = (open_out "output");;
 let ppf_file = formatter_of_out_channel output;;
 
-type return =
+(** Error: the automaton and the part which shows its set is not regular,
+  Ok: the formula defining the automaton if its automaton is equal to the input
+  Dif :  the formula defining the automaton if the automaton associated to the formula is not equal to the input (should never happen) *)
+type return = 
   | Error of (Automaton.automaton * Automaton.NotReg.t )
-  | Ok of Formula.t
-  | Dif of Formula.t
+  | Ok of Formula.t option
+  | Dif of Formula.t 
 
-let check_N simple =
-    match Automaton.construct_simple Automaton.Mod Formula.Existential simple with
-    | Automaton.Formula f ->
-       let f = Formula.elim simple.Simple.natural f in
-       let generated = Formula.to_aut simple.Simple.base simple.Simple.dimension simple.Simple.natural f in
-       if Simple.equal simple generated 
-       then Ok f
-       else Dif f
-    | Automaton.Error (aut,n) -> Error (aut,n)
-
+(** takes as input a simple automaton, return an element of type return stating whether this automata defines a regular set or not*)
+let check_N simple quantifier=
+  match quantifier with 
+  | Formula.No_formula ->
+     begin
+       let aut = (Automaton.of_simple simple) in 
+       match Automaton.exists Automaton.Mod  aut with
+       |None -> Ok None
+       |Some n -> Error (aut, n)
+     end
+  | _ -> 
+     begin
+       match Automaton.construct_simple Automaton.Mod quantifier simple with
+       | Automaton.Formula f ->
+          let f = Formula.elim simple.Simple.natural (Math.sure f) in
+          let generated = Formula.to_aut simple.Simple.base simple.Simple.dimension simple.Simple.natural f in
+          if Simple.equal simple generated 
+          then Ok (Some f)
+          else Dif f
+       | Automaton.Error (aut,n) -> Error (aut,n)
+     end 
 (* let check_Z simple = *)
   
 (*   match Automaton.construct_simple Automaton.Mod Formula.Existential simple with *)
@@ -47,14 +52,16 @@ let check_N simple =
 (*      else Dif f *)
 (*   | Automaton.Error n -> Error n *)
 
-
-let rec print_check aut = 
+(** takes an element of print return and print it *)
+let rec print_check aut quantifier= 
   try 
     if aut.Simple.natural = Math.N then
-      let res = check_N aut in
+      let res = check_N aut quantifier in
       match res with 
-      | Ok f->
+      | Ok (Some f)->
          fprintf ppf "%s: OK: %a !@." aut.Simple.name Formula.printf f
+      | Ok (None)->
+         fprintf ppf "%s: OK !@." aut.Simple.name 
       | Dif f ->
          fprintf ppf "%s: we generate %a !@." aut.Simple.name Formula.printf f
       | Error (aut,n) ->
@@ -62,32 +69,24 @@ let rec print_check aut =
   with 
   | Automaton.E (e,aut')->
      Automaton.printf ppf aut';
-     print_check aut
+     print_check aut quantifier
 
 (** Generate from input *) 
-let main_input () =
-  let simples = Parser.auts Lexer.aut filebuf in
-  List.iter
-    (fun elt ->
-     match elt with
-     | Simple.Mes mes ->
-        fprintf ppf "%s@." mes;
-     | Simple.Aut aut -> 
-        print_check aut
-    ) simples;;
 
 
-let random_formula ()= 
-  let b = 2 and set = Math.N in
+(** generate number random formula in  dimension and size given as argument,
+ generate an automaton in base base from it,
+test the algorithm on this automaton. Print in formula.dat the execution time. *)
+let random_formula number base dimension size quantifier= 
+  let  set = Math.N in
   let graph = (open_out_gen [Open_append] 384 "formula.dat") in
   let graph_file = formatter_of_out_channel graph in
-  for d = 1 to 10 do
-    for i = 1 to 10 do
-      let f = Formula.random set i d (i+1) in
-      fprintf ppf "@.i=%d, d=%d.@. Random formula is %a@." i d Formula.printf f;
+    for i = 1 to number do
+      let f = Formula.random set i dimension (i+1) in
+      fprintf ppf "@.i=%d, d=%d.@. Random formula is %a@." i dimension Formula.printf f;
       let f = Formula.simplify set f in
       fprintf ppf "simplfied in %a@." Formula.printf f;
-      let simple = Formula.to_aut b d set f in
+      let simple = Formula.to_aut base dimension set f in
       let simple = Simple.correct simple in
       let aut = Automaton.of_simple simple in 
       (* fprintf ppf "@.its aut is %a@." Simple.printf simple; *)
@@ -95,17 +94,17 @@ let random_formula ()=
       let beg = Sys.time () in
       let res = Automaton.exists Automaton.Mod aut in
       let time =( Sys.time()) -. beg in
-      fprintf graph_file "%d %d %f@." (Array.length simple.Simple.states) d time;
+      fprintf graph_file "%d %d %f@." (Array.length simple.Simple.states) dimension time;
       match res with 
       | None -> ()
       | Some er ->
          fprintf ppf "We have error %a@. On@.%a@." Automaton.NotReg.printf er Automaton.printf aut
-    done
-  done;
+    done;
   flush graph;
   close_out graph
 ;;
 
+(** show the automaton *)
 let affiche simple = 
   Simple.printf_dot ppf_file simple;
   ignore(Sys.command "dot -Tsvg output >test.svg" (* "eog test.svg&"*));
@@ -126,7 +125,7 @@ let random_aut b d size nat =
       in
       match formula with 
       | Automaton.Formula formula ->
-         f:= Formula.remove_simplify nat formula
+         f:= Formula.remove_simplify nat (Math.sure formula)
       | Automaton.Error _ ->()
   done;
   fprintf ppf "The random automaton is @.%a@. and its formula is @.%a@." Simple.printf !simple Formula.printf !f;
@@ -168,7 +167,7 @@ let mesure nb b d size nat =
        time_construct := !time_construct -. (Sys.time ());
        let f = Automaton.construct  Formula.Existential aut in
        time_construct := !time_construct +. (Sys.time ());
-       let formula= Formula.remove_simplify nat f in
+       let formula= Formula.remove_simplify nat (Math.sure f) in
        if formula == Formula.true_ || formula == Formula.false_
        then incr f_t
   (* )else  *)
@@ -229,11 +228,36 @@ let formula_bug ()=
 (* affiche (Automaton.to_simple aut) *)
 ;;
 
-(* formula_bug () *)
-  (* test() ;; *)
+let mode_input = ref true;;
+let input_file = ref "input";;
+let quantifier = ref Formula.No_formula;;
+let number_aut = ref 1;;
+let base = ref 4;;
+let dimension = ref 2;;
+let size = ref 10;;
+  Arg.parse
+  [("-random", Arg.Clear mode_input, "generate random automata accepting set definable by formulas and test the algorithm on them");
+   ("-input", Arg.Set mode_input, "read a file containing automata(default) and output whether they accepts a formula definable in some logic");
+   ("-file", Arg.Set_string input_file, "the input file used for the mode input. By default \"input\"");
+   ("-existential", Arg.Unit (fun _ -> quantifier := Formula.Existential), "generate an existential formula for each automata in the input");
+   ("-quantifier-free", Arg.Unit (fun _ -> quantifier := Formula.Free), "generate a quantifier-free formula for each automata in the input");
+   ("-no-formula", Arg.Unit (fun _ -> quantifier := Formula.No_formula), "do not generate a formula for the automata of the input(default)");
+   ("-number", Arg.Set_int number_aut, "the number of random automata to generate(default 1)");
+   ("-base", Arg.Set_int base, "the base of automata to randomly generate(default 4)");
+   ("-dimension", Arg.Set_int base, "the dimension of automata to randomly generate(default 2)");
+   ("-size", Arg.Set_int size, "the size of the random formula used to generate an automaton(default 10)");
+   ] (fun s -> failwith ("Unknow argument " ^s)) "" ;;
 
-  (* main_input ();; *)
-
-  (* random_aut 2 3 2 Math.N;; *)
-
-random_formula ();;
+if !mode_input then 
+  let simples = Parser.auts Lexer.aut (Lexing.from_channel (open_in !input_file)) in
+  List.iter
+    (fun elt ->
+     match elt with
+     | Simple.Mes mes ->
+        fprintf ppf "%s@." mes;
+     | Simple.Aut aut -> 
+        print_check aut !quantifier 
+    ) simples
+  else   
+    random_formula !number_aut !base !dimension !size  !quantifier
+;;

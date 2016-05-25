@@ -147,7 +147,7 @@ val state_printf : Format.formatter -> state -> unit
 
 
 (** construct the formula *)
-val construct :Formula.quantifier -> automaton -> Formula.t
+val construct :Formula.quantifier -> automaton -> Formula.t option
 
 (** check that property 11 is verified *)
 val checkN : Subset.t -> automaton -> unit
@@ -158,7 +158,7 @@ exception N of (NotReg.t * automaton )
 exception E of (exn * automaton)
 
 type return = 
-  | Formula of Formula.t
+  | Formula of Formula.t option
   | Error of (automaton * NotReg.t)
 
 val construct_simple: search -> Formula.quantifier -> Simple.automaton -> return

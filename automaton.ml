@@ -94,7 +94,7 @@ The type of a strongly connected component
                 } 
         and
           (** 
-The type of an equivalence class according to ~
+         The type of an equivalence class according to ~
 
         idE an unique id
         statesE the set of states
@@ -1330,7 +1330,7 @@ it would be harder to deal with it *)
                 )
          done
        done
-      ) aut.cycles
+      ) aut.b_less
     
   (** takes a set of state and return their number of distincts oop *)
   let nb_distinct l=
@@ -1460,7 +1460,7 @@ let to_simple aut =
 
 module rec Construct :
 sig 
-    val construct :Formula.quantifier -> automaton ->  Formula.t
+    val construct :Formula.quantifier -> automaton ->  Formula.t option
 end =
 struct
   (** compute the correct value of state.step.(i) *)
@@ -1544,8 +1544,8 @@ struct
          )(Subset.enumerate_sub from.oop.Oop.z)
       ) aut.cycles
 
-  (** compute state.formula for state with a cycle and with empty b class *)
-  let formula_cycle quant aut =
+  (** compute existential state.formula for state with a cycle and with empty b class *)
+  let formula_cycle aut =
     let x = aut.var in 
     List.iter 
       (fun state0->
@@ -1652,10 +1652,6 @@ struct
            ) Formula.false_ aut.b_less_scc
        in
        (* fprintf std_formatter "generating formula %a of state %d@." Formula.printf formula state0.id; *)
-       let formula = 
-         if quant= Formula.Free 
-         then Formula.elim Math.N formula
-         else formula in
        state0.formula <- Some (formula)
       ) aut.cycles
 
@@ -1768,7 +1764,7 @@ struct
             let aut = of_simple simple in
             ignore (Exists.exists Less aut);
             aut.use_mod <- true;
-            Construct.construct quant aut 
+            Math.sure (Construct.construct quant aut )
           (* I use Construct. because the module is recursive, hence I
           can use a function not yet defined *)
           )
@@ -1820,23 +1816,27 @@ struct
        print_debug "the rewritting rule for each scc and each U_i are computed";
        zero aut;
        print_debug "The link from each state to the equivalent state in each accessible scc is computed";
-       formula_cycle quant aut;
-       print_debug "the base formula from each state with a cycle is computed\n";
-       if quant = Formula.Free
-       then
-         construct_qf aut
-       else
-         construct_exists aut
+       match quant with 
+       | Formula.Free ->
+          formula_cycle aut;
+          print_debug "the base formula from each state with a cycle is computed\n";
+          Some(construct_qf aut)
+       | Formula.Existential ->
+          formula_cycle  aut;
+          print_debug "the base formula from each state with a cycle is computed\n";
+          Some( Formula.elim Math.N (construct_exists aut))
+       |Formula.No_formula ->
+         None
       )
     else
       let simple = to_simple aut in
-      construct_les quant simple
+      Some (construct_les quant simple)
 end
 
 let construct = Construct.construct
 
 type return = 
-  | Formula of Formula.t
+  | Formula of Formula.t option
   | Error of (automaton* NotReg.t)
 
 let construct_simple typ quant simple = 

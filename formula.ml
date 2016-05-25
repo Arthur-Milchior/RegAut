@@ -8,6 +8,7 @@ type var =
 type quantifier =
   | Free
   | Existential
+  | No_formula
 
 module Comp =
   struct

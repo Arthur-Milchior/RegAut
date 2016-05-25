@@ -1,10 +1,16 @@
 This program has been written by Arthur Milchior as part of his Computer Science PhD at University Paris Diderot.
-It can be compiled with 
-occamlbuild main.native
 
-You can with this code:
-Take a FO[<,mod] formula and generate the minimal automaton that accepts it,
-Read a list of automaton in the file input, reading natural numbers or integers and check if it is definable with quantifier-free formula with some subset of the predicate [+N, =N, <, mod]
-Generate a formula describing the set accepted by the automaton.
+It can be compiled with 
+ocamlbuild main.native
+
+The program can run in two modes
+In the mode input (default), the program reads a file (by default the file is  ./input, it can otherwise be changed with the command line argument «-input Input_File»), containing automata. The   EBNF of this file is given in automaton.ebnf
+the program print "Name of the automaton:OK: a formula defining the set accepted by the state" if the automaton accepts a state definable in the logic, or
+"name of the automaton: its description: the property it does not satisfy" otherwise
+
+Note that only the program currently considers only automata reading
+set of non-negative integers. The options -none, -quantifier-free and -existential selects whether our algorithm generate no formula, quantifier-free formulas(takes exponential-time), or existential formulas(takes polynomial-time).
+
+In the mode random, selected by the option -random, 1 (or the argument given after the option -number) formulas F of length 10 (or the argument given after the option -size) in dimension 2 (or the argument given after the option -dimension) and base 4 (or the argument given after the option -base). The minimal automaton A accepting the set defined by F is then computed using Büchi-Bruyère algorithm. Our algorithm is then applied to A. The computation time of our algorithm is then appended to formula.dat (this file must already exists)
 
 Arthur@milchior.fr
