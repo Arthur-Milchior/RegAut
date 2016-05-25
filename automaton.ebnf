@@ -1,0 +1,12 @@
+Here is the extended Backus-Naur Form of the file input. 
+We use (* *) for comment in the file and in the ebnf
+
+<file>::=  {<automaton> | <text>(* a section name, to separate lists of automata *) <file>} 
+
+<text>::= "Some text"
+<automaton> ::=  "{" [<text>(* name of the automaton*)] ["Z"(*for automata reading negative an non-negatie integer*)  <int>(*the base,>1*) <int>(*the dimension>0*) {<state>} "}"
+
+<state> ::=  "(" ["final, "] [<text>(* name of the state,  if not given, named qn, with n the number of the state*)] <transition> {"," <transition>} ")"
+<transition>:=  <letter> "->" <int> (*state number, first state is zero*)
+<letter>::= "[" <int> {"," <int>}  "]" (* dimension number of int belonging in {0,...,base-1}*)
+
